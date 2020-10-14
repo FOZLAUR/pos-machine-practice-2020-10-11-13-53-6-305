@@ -1,12 +1,13 @@
 package pos.machine;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class PosMachine {
     public String printReceipt(List<String> barcodes) {
         List<ItemInfo> itemInfos = getAllItemsFromDB();
-        int quantities[] = getQuantitiesOfItems(itemInfos, barcodes);
+        List<Integer> quantities = getQuantitiesOfItems(itemInfos, barcodes);
         String receipt = printItemDetails(itemInfos, quantities);
         return receipt;
     }
@@ -15,32 +16,25 @@ public class PosMachine {
         return ItemDataLoader.loadAllItemInfos();
     }
 
-    private int[] getQuantitiesOfItems(List<ItemInfo> itemInfos, List<String> barcodes) {
-        int itemQuantities[] = new int[itemInfos.size()];
-        for(int i=0; i<itemQuantities.length; i++){
-            itemQuantities[i] = 0;
-        }
-        for(int j=0; j<barcodes.size(); j++){
-            for(int k=0; k<itemInfos.size(); k++){
-                if(barcodes.get(j).equals(itemInfos.get(k).getBarcode())){
-                    itemQuantities[k] += 1;
-                }
-            }
+    private List<Integer> getQuantitiesOfItems(List<ItemInfo> itemInfos, List<String> barcodes) {
+        List<Integer> itemQuantities = new ArrayList<Integer>();
+        for(ItemInfo itemInfo : itemInfos){
+            itemQuantities.add(Collections.frequency(barcodes, itemInfo.getBarcode()));
         }
 
         return itemQuantities;
     }
 
-    private String printItemDetails(List<ItemInfo> itemInfos, int[] quantities) {
+    private String printItemDetails(List<ItemInfo> itemInfos, List<Integer> quantities) {
         String receipt = "***<store earning no money>Receipt***\n";
         List<Integer> subtotals = new ArrayList<Integer>();
 
         for(int i=0; i<itemInfos.size(); i++){
-            if(quantities[i] > 0){
+            int subtotal = calculateSubtotal(itemInfos.get(i).getPrice(), quantities.get(i));
+            if(subtotal > 0){
                 receipt += ("Name: "+itemInfos.get(i).getName()+", ");
-                receipt += ("Quantity: "+quantities[i]+", ");
+                receipt += ("Quantity: "+quantities.get(i)+", ");
                 receipt += ("Unit price: "+itemInfos.get(i).getPrice()+" (yuan), ");
-                int subtotal = calculateSubtotal(itemInfos.get(i).getPrice(), quantities[i]);
                 receipt += ("Subtotal: "+subtotal+" (yuan)\n");
                 subtotals.add(subtotal);
             }
@@ -60,10 +54,6 @@ public class PosMachine {
     }
 
     private int calculateTotal(List<Integer> subtotals) {
-        int total = 0;
-        for(int subtotal : subtotals){
-            total += subtotal;
-        }
-        return total;
+        return subtotals.stream().reduce(0, Integer::sum);
     }
 }
